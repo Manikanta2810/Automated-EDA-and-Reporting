@@ -41,9 +41,10 @@ def get_gemini_explanation(prompt: str) -> str:
     """Calls the Gemini API to get an explanation."""
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-    # Handle missing API key (e.g., show an error)
-    st.error("API Key not found. Please set GEMINI_API_KEY in your .env file or environment variables.")
+        st.error("API Key not found. Please set GEMINI_API_KEY in your .env file or environment variables.")
     return "Error: API Key not configured"
+        
+  
 
      # Corrected: Should be empty for env-injected keys or replaced by user for local.
     api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
