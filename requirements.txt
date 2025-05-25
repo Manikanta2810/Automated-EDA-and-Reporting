@@ -6,3 +6,4 @@ seaborn
 requests
 scikit-learn
 scipy
+os
