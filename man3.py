@@ -1,4 +1,4 @@
-import os
+import os 
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -12,11 +12,11 @@ import sys # To access stdout
 from dotenv import load_dotenv
 from sklearn.preprocessing import OneHotEncoder, MinMaxScaler, StandardScaler # These are correctly imported
 from scipy.stats import ttest_ind, chi2_contingency, f_oneway
-load_dotenv()
+
 # --- Page Configuration ---
 st.set_page_config(
     page_title="Ultimate Gen AI EDA App",
-    page_icon="�",
+    page_icon="🌟",
     layout="wide"
 )
 
@@ -33,15 +33,19 @@ if 'target_variable' not in st.session_state:
     st.session_state.target_variable = None
 if 'uploaded_filename' not in st.session_state:
     st.session_state.uploaded_filename = None
+load_dotenv() # Loads variables from .env
 
 # --- Helper & AI Functions ---
 def get_gemini_explanation(prompt: str) -> str:
+    
     """Calls the Gemini API to get an explanation."""
-api_key = os.getenv("GEMINI_API_KEY")
-if not api_key:
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+    # Handle missing API key (e.g., show an error)
     st.error("API Key not found. Please set GEMINI_API_KEY in your .env file or environment variables.")
     return "Error: API Key not configured"
-    # Corrected: Should be empty for env-injected keys or replaced by user for local.
+
+     # Corrected: Should be empty for env-injected keys or replaced by user for local.
     api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
     headers = {"Content-Type": "application/json"}
     payload = {"contents": [{"role": "user", "parts": [{"text": prompt}]}]}
@@ -169,35 +173,38 @@ def page_data_cleaning():
                     st.success(f"Converted '{col_conv}' to {new_type_sel}."); add_to_log(f"- Converted '{col_conv}' to {new_type_sel}."); st.rerun()
                 except Exception as e: st.error(f"Conversion failed: {e}")
 
-    # --- CORRECTED AND REFINED SECTIONS ---
+    # --- REFINED SECTIONS AS PER YOUR REQUEST ---
     with st.expander("Encode Categorical Variables (One-Hot Encoding)"):
-        # Filter for object or category type columns that are not already one-hot encoded (heuristic: many unique values or specific naming)
         potential_cat_cols = df_cleaned.select_dtypes(include=['object', 'category']).columns.tolist()
         
         if not potential_cat_cols:
-            st.info("No suitable categorical columns found for one-hot encoding.")
+            st.info("No suitable categorical columns found for one-hot encoding in the current dataset.")
         else:
-            col_ohe = st.selectbox("Select categorical column to one-hot encode", [""] + potential_cat_cols, key="ohe_col_select")
-            if col_ohe :
-                if st.button(f"One-Hot Encode '{col_ohe}'", key=f"ohe_btn_{col_ohe}"):
+            col_ohe = st.selectbox("Select categorical column to one-hot encode", [""] + potential_cat_cols, key="ohe_col_select_refined")
+            if col_ohe: # Proceed only if a column is selected
+                if st.button(f"One-Hot Encode '{col_ohe}'", key=f"ohe_btn_refined_{col_ohe}"):
                     try:
                         if col_ohe not in df_cleaned.columns:
-                             st.error(f"Column '{col_ohe}' not found. It might have been removed or renamed.")
-                        elif df_cleaned[col_ohe].nunique() > 50: # Heuristic: warn if too many unique values
-                            st.warning(f"Column '{col_ohe}' has many unique values ({df_cleaned[col_ohe].nunique()}). One-hot encoding might create many new columns.")
-                        
-                        encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
-                        encoded_data = encoder.fit_transform(df_cleaned[[col_ohe]])
-                        encoded_df = pd.DataFrame(encoded_data, columns=encoder.get_feature_names_out([col_ohe]), index=df_cleaned.index)
-                        
-                        df_cleaned = df_cleaned.drop(columns=[col_ohe]) # Drop original column
-                        df_cleaned = df_cleaned.join(encoded_df) # Join new encoded columns
-                        
-                        st.session_state.df_cleaned = df_cleaned.copy()
-                        st.session_state.cleaned_df_for_report = st.session_state.df_cleaned.copy()
-                        st.success(f"One-hot encoded '{col_ohe}'. Original column dropped and new encoded columns added.")
-                        add_to_log(f"- One-hot encoded '{col_ohe}'. Original dropped, {len(encoded_df.columns)} new columns added.")
-                        st.rerun()
+                             st.error(f"Column '{col_ohe}' not found. It might have been removed or renamed in a previous step.")
+                        else:
+                            if df_cleaned[col_ohe].nunique() > 50: # Heuristic for too many new columns
+                                st.warning(f"Warning: Column '{col_ohe}' has {df_cleaned[col_ohe].nunique()} unique values. One-hot encoding will create many new columns.")
+                            
+                            encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
+                            encoded_data = encoder.fit_transform(df_cleaned[[col_ohe]])
+                            encoded_df = pd.DataFrame(encoded_data, columns=encoder.get_feature_names_out([col_ohe]), index=df_cleaned.index)
+                            
+                            # Store original column before dropping for potential revert or comparison (optional)
+                            # original_column_data = df_cleaned[col_ohe].copy() 
+                            
+                            df_cleaned = df_cleaned.drop(columns=[col_ohe]) # Drop original column
+                            df_cleaned = df_cleaned.join(encoded_df) # Join new encoded columns
+                            
+                            st.session_state.df_cleaned = df_cleaned.copy()
+                            st.session_state.cleaned_df_for_report = st.session_state.df_cleaned.copy()
+                            st.success(f"Successfully one-hot encoded '{col_ohe}'. Original column dropped and {len(encoded_df.columns)} new encoded columns added.")
+                            add_to_log(f"- One-hot encoded '{col_ohe}'. Original dropped, {len(encoded_df.columns)} new columns added.")
+                            st.rerun()
                     except Exception as e:
                         st.error(f"One-Hot Encoding failed for '{col_ohe}': {e}")
         
@@ -207,22 +214,22 @@ def page_data_cleaning():
         unscaled_numerical_cols = [col for col in numerical_cols_for_scaling if not col.endswith("_scaled")]
 
         if not unscaled_numerical_cols:
-            st.info("No unscaled numerical columns available for scaling, or all numerical columns appear to have been scaled already.")
+            st.info("No unscaled numerical columns available for scaling. All numerical columns might have been scaled already or none exist.")
         else:
             col_to_scale_values = st.selectbox(
                 "Select numerical column to scale", 
-                options=[""] + unscaled_numerical_cols, # Offer only unscaled columns
-                key="scale_select_cleaning"
+                options=[""] + unscaled_numerical_cols,  # Offer only unscaled columns
+                key="scale_select_cleaning_refined"
             )
-            if col_to_scale_values:
+            if col_to_scale_values: # Proceed only if a column is selected
                 scaler_type_selected = st.radio(
                     "Select scaling method", 
                     ('Min-Max Scaling (Normalization)', 'Standard Scaling (Standardization)'), 
-                    key=f"scaler_type_cleaning_{col_to_scale_values}"
+                    key=f"scaler_type_cleaning_refined_{col_to_scale_values}"
                 )
-                new_scaled_col_name = f"{col_to_scale_values}_scaled" # Define new column name
+                new_scaled_col_name = f"{col_to_scale_values}_scaled" 
 
-                if st.button(f"Scale '{col_to_scale_values}' into '{new_scaled_col_name}'", key=f"apply_scale_cleaning_{col_to_scale_values}"):
+                if st.button(f"Scale '{col_to_scale_values}' into '{new_scaled_col_name}'", key=f"apply_scale_cleaning_refined_{col_to_scale_values}"):
                     if new_scaled_col_name in df_cleaned.columns:
                         st.warning(f"Column '{new_scaled_col_name}' already exists and will be overwritten.")
                     
@@ -232,15 +239,19 @@ def page_data_cleaning():
                         scaler = StandardScaler()
                     
                     try:
-                        df_cleaned[new_scaled_col_name] = scaler.fit_transform(df_cleaned[[col_to_scale_values]])
-                        st.session_state.df_cleaned = df_cleaned.copy()
-                        st.session_state.cleaned_df_for_report = st.session_state.df_cleaned.copy()
-                        st.success(f"Applied {scaler_type_selected} to '{col_to_scale_values}'. New column created: '{new_scaled_col_name}'")
-                        add_to_log(f"- Applied {scaler_type_selected} to '{col_to_scale_values}', creating '{new_scaled_col_name}'.")
-                        st.rerun()
+                        # Ensure the column exists before trying to scale it
+                        if col_to_scale_values not in df_cleaned.columns:
+                            st.error(f"Column '{col_to_scale_values}' not found. It might have been removed or renamed.")
+                        else:
+                            df_cleaned[new_scaled_col_name] = scaler.fit_transform(df_cleaned[[col_to_scale_values]])
+                            st.session_state.df_cleaned = df_cleaned.copy()
+                            st.session_state.cleaned_df_for_report = st.session_state.df_cleaned.copy()
+                            st.success(f"Applied {scaler_type_selected} to '{col_to_scale_values}'. New column created: '{new_scaled_col_name}'")
+                            add_to_log(f"- Applied {scaler_type_selected} to '{col_to_scale_values}', creating '{new_scaled_col_name}'.")
+                            st.rerun()
                     except Exception as e:
                         st.error(f"Scaling failed for '{col_to_scale_values}': {e}")
-    # --- END OF CORRECTED AND REFINED SECTIONS ---
+    # --- END OF REFINED SECTIONS ---
 
     st.markdown("---"); st.subheader("Preview of Data After Cleaning"); st.dataframe(df_cleaned.head(), use_container_width=True)
 
@@ -525,10 +536,10 @@ def execute_user_code(user_code, setup_code="", is_plot=False):
     local_namespace = {}
     # Make necessary modules and sample data available in the execution scope
     global_namespace = {
-        'np': np, 
-        'pd': pd, 
-        'plt': plt, 
-        'sns': sns, 
+        'np': np,
+        'pd': pd,
+        'plt': plt,
+        'sns': sns,
         'sample_df_for_learning': sample_df_for_learning.copy() # Pass a copy to avoid modification
     }
 
@@ -538,7 +549,7 @@ def execute_user_code(user_code, setup_code="", is_plot=False):
         if is_plot:
             fig_object = plt.gcf() # Get current figure
             # Check if figure has any axes, meaning something was plotted
-            if not fig_object.get_axes(): 
+            if not fig_object.get_axes():
                 fig_object = None # No actual plot was made
             else:
                 # If a plot was made, ensure it's not empty
@@ -549,10 +560,10 @@ def execute_user_code(user_code, setup_code="", is_plot=False):
 
     except Exception as e:
         error_message = f"Error executing code:\n{type(e).__name__}: {e}"
-    
+
     output_text = stdout_capture.getvalue()
     stdout_capture.close()
-    
+
     return output_text, fig_object, error_message
 
 
@@ -568,7 +579,7 @@ def page_learning_zone():
     for i, lib_name in enumerate(lib_names):
         with lib_tabs[i]:
             st.subheader(f"Learn {lib_name}")
-            
+
             topics = learning_content[lib_name]
             selected_topic_name = st.selectbox(f"Select a {lib_name} Topic:", list(topics.keys()), key=f"select_{lib_name}")
 
@@ -580,51 +591,52 @@ def page_learning_zone():
                         st.markdown(item)
                 else:
                     st.markdown(topic_data["explanation"])
-                
+
                 st.markdown("##### Example Code:")
                 st.code(topic_data["example_code"], language="python")
 
                 st.markdown("##### Try it Yourself!")
-                
+
                 # Use a unique key for each text_area based on library and topic
                 code_editor_key = f"user_code_{lib_name}_{selected_topic_name.replace(' ','_').replace('&','_').replace('(','_').replace(')','_')}"
-                
+
                 # Initialize text area content from default_code or previous entry
                 if code_editor_key not in st.session_state:
                     st.session_state[code_editor_key] = topic_data.get("default_code", f"# Write your {lib_name} code here\n")
-                
+
                 user_code_input = st.text_area(
-                    "Your Code:", 
-                    value=st.session_state[code_editor_key], 
-                    height=250, 
+                    "Your Code:",
+                    value=st.session_state[code_editor_key],
+                    height=250,
                     key=code_editor_key # This ensures state is preserved per topic
                 )
 
                 if st.button("Run Code", key=f"run_btn_{lib_name}_{selected_topic_name.replace(' ','_').replace('&','_').replace('(','_').replace(')','_')}"):
                     is_plot_expected = lib_name in ["Matplotlib", "Seaborn"]
-                    
+
                     # Base imports always included for convenience
                     base_setup_code = "import numpy as np\nimport pandas as pd\nimport matplotlib.pyplot as plt\nimport seaborn as sns\n"
                     # Add sample DataFrame for Pandas examples
                     if lib_name == "Pandas":
                          base_setup_code += f"sample_data_learning = {sample_data_learning}\nsample_df_for_learning = pd.DataFrame(sample_data_learning)\n"
-                    
+
+
                     # Add topic-specific setup code if any
                     topic_setup_code = topic_data.get("setup_code", "")
                     final_setup_code = base_setup_code + topic_setup_code
 
                     text_output, plot_output, error_output = execute_user_code(user_code_input, setup_code=final_setup_code, is_plot=is_plot_expected)
-                    
+
                     st.markdown("##### Output:")
                     if error_output:
                         st.error(error_output)
                     if text_output:
                         # Use st.text for preformatted text, or st.markdown if it contains markdown
-                        st.text(text_output) 
+                        st.text(text_output)
                     if plot_output:
                         st.pyplot(plot_output)
                         plt.clf() # Clear the figure after displaying to avoid overlap with subsequent plots
-                    
+
                     # Handle cases where no explicit output is generated
                     if not error_output and not text_output and not plot_output:
                         if is_plot_expected:
@@ -646,9 +658,9 @@ if uploaded_file_main is not None:
             df_load = pd.read_csv(uploaded_file_main)
             # Reset all relevant session state variables for the new file
             st.session_state.df = df_load.copy()
-            st.session_state.df_cleaned = df_load.copy() 
+            st.session_state.df_cleaned = df_load.copy()
             st.session_state.cleaned_df_for_report = df_load.copy()
-            st.session_state.target_variable = None 
+            st.session_state.target_variable = None
             st.session_state.report_log = [f"- Dataset '{uploaded_file_main.name}' loaded: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}."]
             st.session_state.uploaded_filename = uploaded_file_main.name # Update the stored filename
             st.sidebar.success(f"'{uploaded_file_main.name}' loaded!")
@@ -679,9 +691,9 @@ else:
     default_index_eda = 0 # Default to Learning Zone
 
 page_selected = st.sidebar.radio(
-    "Select Option:", 
-    page_options_main, 
-    index=default_index_eda, 
+    "Select Option:",
+    page_options_main,
+    index=default_index_eda,
     key="main_page_nav_radio"
 )
 
@@ -696,6 +708,5 @@ elif page_selected == "7. AI Modeling Advisor": page_modeling_advisor()
 elif page_selected == "8. AI Summary & Reporting": page_ai_summary()
 elif page_selected == "📚 AI Learning Zone": page_learning_zone()
 
-# Message if trying to access EDA pages without data
 if not eda_pages_available and page_selected != "📚 AI Learning Zone":
      st.info("⬆️ Upload a CSV file using the sidebar to access full EDA features, or explore the AI Learning Zone.")
