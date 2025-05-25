@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -8,9 +9,10 @@ import json
 import io # For capturing print outputs
 import contextlib # For redirecting stdout
 import sys # To access stdout
+from dotenv import load_dotenv
 from sklearn.preprocessing import OneHotEncoder, MinMaxScaler, StandardScaler # These are correctly imported
 from scipy.stats import ttest_ind, chi2_contingency, f_oneway
-
+load_dotenv()
 # --- Page Configuration ---
 st.set_page_config(
     page_title="Ultimate Gen AI EDA App",
@@ -35,7 +37,11 @@ if 'uploaded_filename' not in st.session_state:
 # --- Helper & AI Functions ---
 def get_gemini_explanation(prompt: str) -> str:
     """Calls the Gemini API to get an explanation."""
-    api_key = "AIzaSyDGeinwr7M57wtEE3DFswrlDHa19qrWXk0" # Corrected: Should be empty for env-injected keys or replaced by user for local.
+api_key = os.getenv("GEMINI_API_KEY")
+if not api_key:
+    st.error("API Key not found. Please set GEMINI_API_KEY in your .env file or environment variables.")
+    return "Error: API Key not configured"
+    # Corrected: Should be empty for env-injected keys or replaced by user for local.
     api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
     headers = {"Content-Type": "application/json"}
     payload = {"contents": [{"role": "user", "parts": [{"text": prompt}]}]}
